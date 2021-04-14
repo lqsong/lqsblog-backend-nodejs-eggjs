@@ -113,7 +113,7 @@ class ArticleService extends Service {
         category: categorys[rows[index].categoryId] || {},
         addtime: rows[index].addtime,
         tag: rows[index].tag,
-        hit: rows[index].hid,
+        hit: rows[index].hit,
         categoryIds: rows[index].categoryIds,
       });
     }
