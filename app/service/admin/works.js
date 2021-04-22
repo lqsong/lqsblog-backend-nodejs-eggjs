@@ -314,7 +314,7 @@ class WorksService extends Service {
     const total = await ctx.model.Works.count();
 
     // 本周新增数
-    const week = await ctx.model.Article.count({
+    const week = await ctx.model.Works.count({
       where: {
         createTime: {
           [Op.gte]: monday,
