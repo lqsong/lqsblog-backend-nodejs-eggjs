@@ -51,7 +51,7 @@ class AttachmentService extends Service {
     for (let index = 0; index < rowsLen; index++) {
       list.push({
         id: rows[index].id,
-        imgurl: rows[index].file_sub_dir + '/' + rows[index].file_name,
+        imgurl: ctx.app.config.multipart.uploadWeburl + rows[index].file_sub_dir + '/' + rows[index].file_name,
         size: (rows[index].file_size / 1024).toFixed(2) + 'KB',
       });
     }
