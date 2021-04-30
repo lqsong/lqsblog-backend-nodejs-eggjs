@@ -29,10 +29,10 @@ class LinkService extends Service {
         logo: item.logo,
       };
 
-      if (listMap[item.creatorId]) {
-        listMap[item.creatorId].push(newItem);
+      if (listMap[item.categoryId]) {
+        listMap[item.categoryId].push(newItem);
       } else {
-        listMap[item.creatorId] = [ newItem ];
+        listMap[item.categoryId] = [ newItem ];
       }
 
     }
