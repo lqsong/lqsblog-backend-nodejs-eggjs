@@ -38,8 +38,29 @@ class ResourceService extends Service {
       }
     }
 
-    const record = await ctx.model.Resource.create({ pid, name, urlcode, type, perms, permsLevel });
-    return record;
+    // 创建事务
+    const t = await ctx.model.transaction();
+    let record;
+    try {
+      record = await ctx.model.Resource.create({ pid, name, urlcode, type, perms, permsLevel }, { transaction: t });
+
+      // 修改资源权限关联表
+      await this.saveBatchResourcePermission(record, t);
+
+      // 提交事务
+      await t.commit();
+
+    } catch (error) {
+
+      // 回滚事务
+      await t.rollback();
+
+      throw error;
+
+    }
+
+
+    return record;    
   }
 
   /**
@@ -55,7 +76,36 @@ class ResourceService extends Service {
     // 验证
     await this.saveUpdateVerify({ name, urlcode });
 
-    return await ctx.model.Resource.update({ name, urlcode, type, perms, permsLevel }, { where: { id } });
+
+    // 创建事务
+    const t = await ctx.model.transaction();
+    try {
+      const record = arguments[0];
+
+      await ctx.model.Resource.update({ name, urlcode, type, perms, permsLevel }, { 
+        where: { id }, 
+        transaction: t 
+      });
+
+      // 修改角色资源关联表
+      await this.saveBatchResourcePermission(record, t);
+
+
+      // 提交事务
+      await t.commit();
+
+
+    } catch (error) {
+
+      // 回滚事务
+      await t.rollback();
+
+      throw error;
+
+    }
+
+
+    return true;
   }
 
   /**
@@ -73,8 +123,32 @@ class ResourceService extends Service {
       ctx.throw('有子元素无法删除，请先删除子元素');
     }
 
+    // 创建事务
+    const t = await ctx.model.transaction();
+    // 返回删除记录行数
+    let response = 0;
+    try {
 
-    return await ctx.model.Resource.destroy({ where: { id } });
+       response = await ctx.model.Resource.destroy({ 
+        where: { id },
+        transaction: t,
+      });
+
+      await ctx.model.ResourcePermission.destroy({ where: { resource_id: id }, transaction: t });
+
+      // 提交事务
+      await t.commit();
+
+    } catch (error) {
+      // 回滚事务
+      await t.rollback();
+
+      throw error;
+
+    }
+
+    return response;
+
   }
 
   /**
@@ -147,6 +221,38 @@ class ResourceService extends Service {
     return await this.ctx.model.Resource.findAll({
       attributes: [ 'id', 'name', 'pid' ],
     });
+  }
+
+  /**
+   * 批量修改资源权限关联表
+   * @param {Resource} record 角色字段
+   * @param {transaction} t 事务
+   */
+   async saveBatchResourcePermission(record, t) {
+    const { ctx } = this;
+    if (!record || !record.id) {
+      ctx.throw('资源数据为空');
+    }
+
+    // 先清空同资源ID下resource permission数据
+    await ctx.model.ResourcePermission.destroy({ where: { resource_id: record.id }, transaction: t });
+    // 再批量添加
+    if (record && record.perms) {
+      const permsArr = record.perms.split(',');
+      const rplist = [];
+      const permsArrLen = permsArr.length;
+      for (let index = 0; index < permsArrLen; index++) {
+        const element = permsArr[index];
+        rplist.push({
+          resource_id: record.id,
+          permission_id: element,
+        });
+      }
+
+      if (rplist.length > 0) {
+        return await ctx.model.ResourcePermission.bulkCreate(rplist, { transaction: t });
+      }
+    }
   }
 
 
